@@ -1,0 +1,99 @@
+# Collects Kaleidescape prices twice a day and publishes the web app to GitHub Pages.
+#
+# The database lives in the "data" release (tracker.db.gz), not in git, so the repository
+# stays small. Each run downloads it, collects, uploads it again, rebuilds the site and deploys it.
+# If collection fails, whatever was collected is still saved and published, then the run is
+# marked failed so GitHub emails you.
+
+name: Collect prices and publish
+
+on:
+  schedule:
+    - cron: '30 8 * * *'    # 3:30 AM Eastern Standard Time (4:30 AM during daylight time)
+    - cron: '30 20 * * *'   # 3:30 PM Eastern Standard Time
+  workflow_dispatch:
+    inputs:
+      skip_collect:
+        description: 'Only rebuild and publish the site (no collection)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # update the data release
+  pages: write      # deploy the site
+  id-token: write   # required by deploy-pages
+  actions: write    # keep this scheduled workflow enabled
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download database
+        run: |
+          mkdir -p data
+          gh release download data --pattern tracker.db.gz --dir data
+          gunzip -f data/tracker.db.gz
+
+      - name: Collect prices
+        id: collect
+        if: ${{ !inputs.skip_collect }}
+        continue-on-error: true
+        run: node src/collect.ts
+
+      - name: Save database
+        if: ${{ !inputs.skip_collect }}
+        run: |
+          node -e "new (require('node:sqlite').DatabaseSync)('data/tracker.db').exec('PRAGMA wal_checkpoint(TRUNCATE)')"
+          gzip -kf data/tracker.db
+          gh release upload data data/tracker.db.gz --clobber
+
+      - name: Build site
+        run: node src/web/build.ts --base "/${{ github.event.repository.name }}" --out site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      # GitHub pauses scheduled workflows after 60 days without repository activity.
+      # Re-enabling it once a month resets that timer.
+      - name: Keep schedule enabled
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          if [ "$(date -u +%d)" = "01" ]; then
+            gh api --method PUT "repos/${{ github.repository }}/actions/workflows/collect.yml/enable"
+          fi
+
+    outputs:
+      collect_outcome: ${{ steps.collect.outcome }}
+
+  deploy:
+    needs: collect
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Report collection failure
+        if: ${{ needs.collect.outputs.collect_outcome == 'failure' }}
+        run: |
+          echo "::error::Price collection failed. The site was published with the data that was collected. See the 'Collect prices' step for details."
+          exit 1
