@@ -40,8 +40,10 @@ npm run web:phone    # also prints an address to open on your iPhone (same Wi-Fi
 - Code: `src/web/` (server, data, pages) and `public/` (styles and chart script).
 
 ## Running on GitHub
-The workflow in `.github/workflows/collect.yml` runs the collector at 3:30 AM and 3:30 PM Eastern
-and publishes the web app to GitHub Pages, so no computer needs to stay on.
+The workflow in `.github/workflows/collect.yml` runs the collector at 7:00 AM and 1:00 PM Eastern
+(8:00 AM and 2:00 PM during daylight saving time, because GitHub schedules use UTC) and publishes
+the web app to GitHub Pages, so no computer needs to stay on. GitHub can start scheduled runs
+up to about an hour late when it's busy.
 - The database is stored in the repository's `data` release as `tracker.db.gz`, not in git.
   Each run downloads it, collects, uploads it again, rebuilds the site and deploys it.
 - To build the static site locally: `node src/web/build.ts --base /<repo-name> --out site`.
