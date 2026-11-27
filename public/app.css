@@ -46,7 +46,10 @@ a { color: var(--accent); }
 .back svg { width: 22px; height: 22px; margin-left: -6px; }
 
 /* Feed */
-.day { font-size: .882rem; font-weight: 600; color: var(--text-2); margin: 20px 0 0; padding-bottom: 6px; border-bottom: .5px solid var(--border); }
+.updated { font-size: .882rem; color: var(--muted); margin: -6px 0 4px; }
+/* Day bar: same size as prices (17pt), white on black in both light and dark mode */
+.day { font-size: 1rem; font-weight: 600; color: #ffffff; background: #000000; margin: 20px 0 0; padding: 8px 12px; border-radius: 8px; }
+.new-low { font-weight: 600; letter-spacing: .02em; }
 .sec { font-size: .882rem; font-weight: 600; margin: 14px 0 2px; display: flex; gap: 6px; align-items: center; }
 .sec .n { color: var(--muted); font-weight: 400; }
 .sec svg { width: 18px; height: 18px; }

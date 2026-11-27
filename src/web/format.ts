@@ -30,6 +30,12 @@ export function dayHeading(day: string): string {
 export const shortDate = (iso: string) => fmt(iso, { month: 'short', day: 'numeric', year: 'numeric' });
 /** "Dec 1" */
 export const monthDay = (iso: string) => fmt(iso, { month: 'short', day: 'numeric' });
+/** "Fri, Nov 27, 2026 at 2:53 PM ET" */
+export function updatedAt(iso: string): string {
+  const date = fmt(iso, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const time = fmt(iso, { hour: 'numeric', minute: '2-digit' });
+  return `${date} at ${time} ET`;
+}
 /** "Tue, Dec 1, 3 AM" */
 export const saleEnd = (iso: string) => fmt(iso, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
 

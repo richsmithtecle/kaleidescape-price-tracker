@@ -2,7 +2,9 @@
 
 import { links } from './links.ts';
 import { getData, historyPath, type Change, type Item, type Kind, type Dir } from './data.ts';
-import { esc, money, dayHeading, shortDate, monthDay, saleEnd, pageShell } from './format.ts';
+import { esc, money, dayHeading, shortDate, monthDay, saleEnd, updatedAt, pageShell } from './format.ts';
+
+const SITE_TITLE = 'Kaleidescape Store Price Tracker';
 
 const STORE = 'https://www.kaleidescape.com/movie-store/';
 const FORUM_POST = 'https://www.kscapeowners.com/XF/posts/';
@@ -37,15 +39,20 @@ function changeText(c: Change): string {
   return `<span class="chg ${c.dir}">${c.dir === 'down' ? '↓' : '↑'} ${money(diff)}</span>`;
 }
 
+/** Alphabetical order ignoring leading quotes and punctuation ("Wuthering Heights" sorts under W). */
+const sortKey = (name: string) => name.replace(/^[^\p{L}\p{N}]+/u, '');
+
 function feedRow(c: Change): string {
   const item = c.item;
+  // Most important first, so on a narrow screen it's the format that gets cut off.
   const meta: string[] = [];
-  if (c.kind === 'bundle') { if (item?.numItems) meta.push(`${item.numItems} titles`); }
-  else if (c.formatLabel) meta.push(esc(c.formatLabel));
-  if (c.lowest) meta.push('<span class="lo">Lowest ever</span>');
+  if (c.low === 'new') meta.push('<span class="lo new-low">NEW LOWEST PRICE</span>');
+  else if (c.low === 'equal') meta.push('<span class="lo">Lowest</span>');
   if (item?.onSale && item.saleEnd && c.dir === 'down' && item.changes[item.changes.length - 1] === c) {
     meta.push(`<span class="ends">Ends ${esc(monthDay(item.saleEnd))}</span>`);
   }
+  if (c.kind === 'bundle') { if (item?.numItems) meta.push(`${item.numItems} titles`); }
+  else if (c.formatLabel) meta.push(esc(c.formatLabel));
   return `<div class="row${item ? '' : ' noact'}"><div style="min-width:0">
   <div class="l1">${storeLink(item, c.name)}<span class="price">${money(c.price)}</span></div>
   <div class="l2"><span class="meta">${meta.join(' · ')}</span>${changeText(c)}</div></div>${histButton(item, c.name)}</div>`;
@@ -85,7 +92,7 @@ function daySections(day: string, all: boolean): string {
   let h = '';
   SECTIONS.forEach((s, i) => {
     const rows = list.filter((c) => c.dir === s.dir && c.kind === s.kind)
-      .sort((a, b) => (Math.abs(b.price - (b.old ?? b.price)) - Math.abs(a.price - (a.old ?? a.price))) || a.name.localeCompare(b.name));
+      .sort((a, b) => sortKey(a.name).localeCompare(sortKey(b.name), 'en', { sensitivity: 'base', numeric: true }));
     if (!rows.length) return;
     h += `<div class="sec" id="s${i}"><span class="${s.cls}">${icon(s.icon)}</span>${s.title} <span class="n">${rows.length}</span></div>`;
     h += (all ? rows : rows.slice(0, SHOW_FIRST)).map(feedRow).join('');
@@ -100,19 +107,20 @@ const dayTitle = (day: string) => {
 
 export function dayPage(day: string): string | null {
   if (!changesByDay().has(day)) return null;
-  const h = `<a class="back" href="${links.home()}">${icon('back')}Price changes</a><div class="day" style="margin-top:4px">${dayTitle(day)}</div>${daySections(day, true)}`;
+  const h = `<a class="back" href="${links.home()}">${icon('back')}Price Tracker</a><div class="day" style="margin-top:4px">${dayTitle(day)}</div>${daySections(day, true)}`;
   return shell(dayHeading(day), h);
 }
 
 export function feedPage(before?: string): string {
   const d = getData();
   const days = d.days.filter((x) => !before || x < before).slice(0, DAYS_PER_PAGE);
-  let h = header('Price changes');
+  let h = header(SITE_TITLE);
+  if (d.lastUpdated) h += `<p class="updated">Updated ${esc(updatedAt(d.lastUpdated))}</p>`;
   if (!days.length) h += `<p class="empty">No price changes yet. Run <code>npm run collect</code> to start recording.</p>`;
   for (const day of days) h += `<div class="day">${dayTitle(day)}</div>${daySections(day, false)}`;
   const older = d.days.find((x) => x < (days[days.length - 1] ?? ''));
   h += `<div class="pager"><span>${before ? `<a href="${links.home()}">Newest</a>` : ''}</span><span>${older ? `<a href="${links.older(days[days.length - 1])}">Older days</a>` : ''}</span></div>`;
-  return shell('Price changes', h);
+  return shell(SITE_TITLE, h);
 }
 
 // ---- Title and bundle history page ----
@@ -171,7 +179,11 @@ export function itemPage(item: Item): string {
 
   const tags: string[] = [];
   if (item.onSale) {
-    if (st.low !== null && item.price !== null && item.price <= st.low) tags.push('<span class="lo">Lowest ever</span>');
+    const last = item.changes[item.changes.length - 1];
+    if (last?.dir === 'down' && last.price === item.price) {
+      if (last.low === 'new') tags.push('<span class="lo new-low">NEW LOWEST PRICE</span>');
+      else if (last.low === 'equal') tags.push('<span class="lo">Lowest</span>');
+    }
     if (item.saleEnd) tags.push(`<span class="ends">Sale ends ${esc(saleEnd(item.saleEnd))}</span>`);
   } else tags.push('<span class="muted">Regular price · Not on sale</span>');
   if (item.rental) tags.push(`<span class="muted">Rent ${money(item.rental)}</span>`);
@@ -198,7 +210,7 @@ export function itemPage(item: Item): string {
   const hasForum = item.changes.some((c) => c.source === 'forum');
 
   const body = `
-  <a class="back" href="${links.home()}">${icon('back')}Price changes</a>
+  <a class="back" href="${links.home()}">${icon('back')}Price Tracker</a>
   <h1 class="ttl">${esc(item.name)}</h1>
   <p class="sub s">${esc(sub)}</p>
   <div class="now"><span class="big">${money(item.price)}</span>${item.onSale && item.regular && item.regular !== item.price ? `<span class="was">${money(item.regular)}</span>` : ''}</div>
@@ -234,7 +246,7 @@ const fold = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').
 
 export function searchPage(q: string): string {
   const query = q.trim();
-  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price changes">${icon('chart')}</a>`);
+  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price Tracker home">${icon('chart')}</a>`);
   h += `<form class="search" action="${links.search()}" method="get" role="search">
     <input type="search" name="q" value="${esc(query)}" placeholder="Wonka, Harry Potter 8-Movie Set" autofocus autocomplete="off" aria-label="Search titles and bundles"></form>`;
   if (query.length >= 2) {
@@ -257,7 +269,7 @@ export function searchPage(q: string): string {
 
 /** Static-site search: the same page, filled in the browser from search-index.json by search.js. */
 export function staticSearchPage(): string {
-  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price changes">${icon('chart')}</a>`);
+  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price Tracker home">${icon('chart')}</a>`);
   h += `<form class="search" role="search" onsubmit="return false">
     <input type="search" id="q" placeholder="Wonka, Harry Potter 8-Movie Set" autofocus autocomplete="off" aria-label="Search titles and bundles"></form>
     <div id="results"></div>
@@ -280,5 +292,5 @@ export function searchIndex(): unknown[] {
 }
 
 export function notFoundPage(): string {
-  return shell('Not found', `${header('Not found')}<p class="empty">That page doesn't exist. <a href="${links.home()}">Back to price changes</a></p>`);
+  return shell('Not found', `${header('Not found')}<p class="empty">That page doesn't exist. <a href="${links.home()}">Back to the price tracker</a></p>`);
 }

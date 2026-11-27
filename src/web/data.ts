@@ -43,7 +43,9 @@ export interface Change {
   formatLabel: string;
   source: 'forum' | 'tracker';
   postId: number | null;
-  lowest: boolean;             // lowest price recorded so far for this item and format family
+  /** For price drops, compared with every earlier price of this item and format family:
+   *  'new' = lower than all of them, 'equal' = ties the earlier lowest, null = neither. */
+  low: 'new' | 'equal' | null;
 }
 
 export interface Data {
@@ -51,6 +53,7 @@ export interface Data {
   changes: Change[];           // newest first
   days: string[];              // days that have changes, newest first
   trackerStart: string | null; // ISO time of the first tracker run
+  lastUpdated: string | null;  // ISO time the latest successful price check finished
   loadedAt: number;
 }
 
@@ -62,7 +65,8 @@ const withYear = (title: string, slug: string | null) => {
 function load(): Data {
   const db = new DatabaseSync(DB_PATH, { readOnly: true });
   try {
-    const trackerStart = (db.prepare(`SELECT min(started_at) s FROM runs WHERE status IN ('ok','partial')`).get() as { s: string | null }).s;
+    const runTimes = db.prepare(`SELECT min(started_at) s, max(finished_at) f FROM runs WHERE status IN ('ok','partial')`).get() as { s: string | null; f: string | null };
+    const trackerStart = runTimes.s;
     const items = new Map<string, Item>();
 
     for (const r of db.prepare(`SELECT * FROM current_prices`).all() as Record<string, any>[]) {
@@ -83,7 +87,7 @@ function load(): Data {
     }
 
     const all: Change[] = [];
-    const push = (c: Omit<Change, 'day' | 'lowest'>) => all.push({ ...c, day: dayKey(c.at), lowest: false });
+    const push = (c: Omit<Change, 'day' | 'low'>) => all.push({ ...c, day: dayKey(c.at), low: null });
 
     // Forum history (before the tracker started)
     const forum = db.prepare(`SELECT * FROM forum_price_changes ${trackerStart ? 'WHERE posted_at < ?' : ''} ORDER BY posted_at, id`)
@@ -127,19 +131,21 @@ function load(): Data {
 
     all.sort((a, b) => a.at.localeCompare(b.at));
 
-    // Attach to items and mark running lowest per item + format family.
+    // Attach to items and label price drops against every earlier price (including the
+    // price it dropped from) for the same item and format family.
     const lows = new Map<string, number>();
     for (const c of all) {
       const k = `${c.item?.key ?? 'x:' + c.name}|${c.family}`;
       const prevLow = lows.get(k);
-      if (c.dir !== 'up' && (prevLow === undefined || c.price <= prevLow)) c.lowest = prevLow !== undefined || c.dir === 'down';
+      const before = Math.min(prevLow ?? Infinity, c.old ?? Infinity);
+      if (c.dir === 'down' && before !== Infinity) c.low = c.price < before ? 'new' : c.price === before ? 'equal' : null;
       lows.set(k, Math.min(prevLow ?? Infinity, c.price, c.old ?? Infinity));
       c.item?.changes.push(c);
     }
 
     const changes = all.reverse();
     const days = [...new Set(changes.map((c) => c.day))];
-    return { items, changes, days, trackerStart, loadedAt: Date.now() };
+    return { items, changes, days, trackerStart, lastUpdated: runTimes.f, loadedAt: Date.now() };
   } finally {
     db.close();
   }
