@@ -103,6 +103,8 @@ function load(): Data {
       });
     }
 
+    const hasHistory = new Set(all.map((c) => c.item?.key).filter(Boolean));
+
     // Tracker history: consecutive rows with a different price are changes.
     // Titles first seen after the first run day are "added".
     const firstDay = trackerStart ? dayKey(trackerStart) : null;
@@ -113,7 +115,9 @@ function load(): Data {
         const item = items.get(key) ?? null;
         if (key !== prevKey) {
           prevKey = key; prev = r;
-          if (item && firstDay && dayKey(r.observed_at) > firstDay && r.price_cents != null) {
+          // Something first seen after the tracker's first day is "added" -- unless it already has
+          // earlier forum history (e.g. a set Kaleidescape hid from its lists that we found later).
+          if (item && firstDay && dayKey(r.observed_at) > firstDay && r.price_cents != null && !hasHistory.has(key)) {
             push({ item, name: item.name, kind: item.kind, at: r.observed_at, dir: 'added', price: r.price_cents, old: null,
               family: item.family, formatLabel: item.formatLabel, source: 'tracker', postId: null });
           }
