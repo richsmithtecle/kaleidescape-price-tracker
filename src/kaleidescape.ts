@@ -143,23 +143,58 @@ export class KaleidescapeClient {
    * Every bundle in the store, de-duplicated. The Content Sets page groups bundles into rows
    * ("On Sale", "Trilogies", ...) and one bundle can appear in several rows.
    */
-  async getBundleList(): Promise<BundleListing[]> {
-    const data = await this.getJson<unknown>(
-      'packages/collection/content_sets_master_collection/v2', { country_code: COUNTRY }, 'bundle list',
-    );
+  async getBundleList(opts: { delayMs?: number; log?: (m: string) => void } = {}): Promise<BundleListing[]> {
     const found = new Map<number, BundleListing>();
     const walk = (node: unknown) => {
       if (Array.isArray(node)) return node.forEach(walk);
       if (node && typeof node === 'object') {
         const obj = node as Record<string, unknown>;
-        if (typeof obj.hard_bundle_id === 'number' && typeof obj.display_name === 'string') {
+        if (typeof obj.hard_bundle_id === 'number' && typeof obj.display_name === 'string' && !found.has(obj.hard_bundle_id)) {
           found.set(obj.hard_bundle_id, obj as unknown as BundleListing);
         }
         Object.values(obj).forEach(walk);
       }
     };
-    walk(data);
+    walk(await this.getJson<unknown>('packages/collection/content_sets_master_collection/v2', { country_code: COUNTRY }, 'bundle list'));
+    const fromMaster = found.size;
+
+    // Kaleidescape leaves some sets off the Content Sets page (e.g. The Mummy 3-Movie Set) but
+    // shows them in other set collections linked from the store's home page, such as the
+    // current "Content Sets On Sale" row, whose name changes with each sale.
+    try {
+      const home = await this.getJson<unknown>('navigation/home', { country_code: COUNTRY }, 'store home');
+      const names = new Set([...JSON.stringify(home).matchAll(/\/collection\/([a-z0-9_]*set[a-z0-9_]*)/gi)].map((m) => m[1]));
+      names.delete('content_sets_master_collection');
+      for (const name of names) {
+        if (opts.delayMs) await sleep(opts.delayMs);
+        try {
+          walk(await this.getJson<unknown>(`packages/collection/${name}`, { country_code: COUNTRY, utm_source: 'movie_store' }, `set collection ${name}`));
+        } catch (err) {
+          opts.log?.(`WARN: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      opts.log?.(`Bundles: ${fromMaster} on the Content Sets page, ${found.size - fromMaster} more from ${names.size} other set collection(s)`);
+    } catch (err) {
+      opts.log?.(`WARN: couldn't read the store home page for extra set collections: ${err instanceof Error ? err.message : String(err)}`);
+    }
     return [...found.values()];
+  }
+
+  /** A set's own page turned into a listing, for sets that aren't on any list right now. */
+  static listingFromDetail(slug: string, d: BundleDetail): BundleListing | null {
+    const hb = d.hard_bundle;
+    if (!hb?.hard_bundle_id) return null;
+    return {
+      collection_id: 0, hard_bundle_id: hb.hard_bundle_id, display_name: d.title, uri_name: `/set/${slug}`,
+      image_uris: (hb as { image_uris?: Record<string, string> }).image_uris ?? null,
+      est_price: hb.price,
+      est_original_price: hb.original_price && hb.price && toCents(hb.original_price)! > toCents(hb.price)! ? hb.original_price : null,
+    };
+  }
+
+  /** A title's own page, which names the set it belongs to (if any). */
+  getTitleDetail(editionId: string): Promise<{ title: string; hard_bundle_collection_name: string | null; hard_bundle_uri: string | null }> {
+    return this.getJson(`movie/edition/id/${encodeURIComponent(editionId)}`, { country_code: COUNTRY }, `title ${editionId}`);
   }
 
   getBundle(slug: string): Promise<BundleDetail> {

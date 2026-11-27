@@ -7,11 +7,25 @@
 //        - it just went on sale, or its sale price changed (to get the sale end date), or
 //        - its contents haven't been checked for CONTENTS_REFRESH_DAYS.
 //      The first run fetches every bundle page (~336). Later runs usually fetch only a few.
+//   3. Sets that aren't on any list right now are still checked through their own page:
+//        - sets seen in the last UNLISTED_DAYS (Kaleidescape hides some, e.g. The Mummy 3-Movie Set), and
+//        - sets named in bundle-seeds.txt that the tracker hasn't seen yet.
 
 import type { DatabaseSync } from 'node:sqlite';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { PROJECT_ROOT } from './db.ts';
 import { KaleidescapeClient, toCents, sleep, type BundleDetail, type BundleListing } from './kaleidescape.ts';
 
 const CONTENTS_REFRESH_DAYS = 7;
+const UNLISTED_DAYS = 60;
+const SEEDS_FILE = join(PROJECT_ROOT, 'bundle-seeds.txt');
+
+/** Store slugs from bundle-seeds.txt: one per line, "#" starts a comment. */
+function readSeeds(): string[] {
+  if (!existsSync(SEEDS_FILE)) return [];
+  return readFileSync(SEEDS_FILE, 'utf8').split('\n').map((l) => l.replace(/#.*/, '').trim()).filter(Boolean);
+}
 
 export interface BundleStats {
   bundles_seen: number;
@@ -60,7 +74,38 @@ export async function collectBundles(
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const listings = await client.getBundleList();
+  const listings = await client.getBundleList({ delayMs, log });
+  const listed = new Set(listings.map((b) => b.hard_bundle_id));
+
+  // Sets not on any list right now: known ones seen recently, and seeds not yet known.
+  const unlisted = new Map<string, number | null>();
+  const recent = new Date(Date.now() - UNLISTED_DAYS * 86_400_000).toISOString();
+  for (const r of db.prepare(`SELECT bundle_id, uri_name FROM bundles WHERE last_seen >= ? AND uri_name IS NOT NULL`).all(recent) as { bundle_id: number; uri_name: string }[]) {
+    if (!listed.has(r.bundle_id)) unlisted.set(r.uri_name, r.bundle_id);
+  }
+  const knownSlugs = new Set((db.prepare(`SELECT uri_name FROM bundles`).all() as { uri_name: string }[]).map((r) => r.uri_name));
+  for (const slug of readSeeds()) if (!knownSlugs.has(slug)) unlisted.set(slug, null);
+
+  const prefetched = new Map<number, BundleDetail>();
+  let found = 0;
+  for (const slug of unlisted.keys()) {
+    await sleep(delayMs);
+    try {
+      const detail = await client.getBundle(slug);
+      stats.bundle_details_fetched++;
+      const listing = KaleidescapeClient.listingFromDetail(slug, detail);
+      if (listing && !listed.has(listing.hard_bundle_id)) {
+        listings.push(listing);
+        listed.add(listing.hard_bundle_id);
+        prefetched.set(listing.hard_bundle_id, detail);
+        found++;
+      }
+    } catch (err) {
+      log(`WARN: unlisted set ${slug}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  if (unlisted.size) log(`Bundles: checked ${unlisted.size} set(s) not on any list, ${found} still in the store`);
+
   stats.bundles_seen = listings.length;
   log(`Bundles: ${listings.length} in store`);
 
@@ -89,8 +134,8 @@ export async function collectBundles(
       existing.contents_checked_at < staleBefore ||
       (onSale && !sameSaleAsBefore);
 
-    let detail: BundleDetail | null = null;
-    if (needsDetail) {
+    let detail: BundleDetail | null = prefetched.get(b.hard_bundle_id) ?? null;
+    if (needsDetail && !detail) {
       await sleep(delayMs);
       try {
         detail = await client.getBundle(slugOf(b.uri_name));

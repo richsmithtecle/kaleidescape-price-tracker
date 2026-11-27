@@ -97,10 +97,15 @@ const pick = (cs: Cand[]) => [...cs].sort((a, b) => (a.uri_name?.length ?? 99) -
 
 const bundleByName = new Map<string, number>();
 const bundleByLoose = new Map<string, number>();
-for (const b of db.prepare(`SELECT bundle_id, name FROM bundles`).all() as { bundle_id: number; name: string }[]) {
+const bundleBySlug = new Map<string, number>();
+for (const b of db.prepare(`SELECT bundle_id, name, uri_name FROM bundles`).all() as { bundle_id: number; name: string; uri_name: string | null }[]) {
   bundleByName.set(norm(b.name), b.bundle_id);
   bundleByLoose.set(loose(norm(b.name)), b.bundle_id);
+  if (b.uri_name) bundleBySlug.set(b.uri_name.replace(/_/g, '-'), b.bundle_id);
 }
+/** ironcross sometimes adds words after the set name: "Arrow 8-Season Set Complete Series",
+ *  "Set: PAW Patrol 3-Movie Set PAW Patrol: The Movie / ...". Keep "... Set" / "... Collection". */
+const setNameOnly = (n: string) => n.replace(/^Set:\s*/i, '').replace(/(\b(Set|Collection)\b).*$/i, '$1').trim();
 
 function matchTitle(c: ParsedChange): { edition_id: string; method: string } | null {
   const n = norm(c.name);
@@ -126,7 +131,16 @@ function matchBundle(c: ParsedChange): { bundle_id: number; method: string } | n
   const id = bundleByName.get(norm(c.name));
   if (id) return { bundle_id: id, method: 'bundle name' };
   const lz = bundleByLoose.get(loose(norm(c.name)));
-  return lz ? { bundle_id: lz, method: 'loose bundle name' } : null;
+  if (lz) return { bundle_id: lz, method: 'loose bundle name' };
+  const trimmed = setNameOnly(c.name);
+  if (trimmed !== c.name) {
+    const t = bundleByName.get(norm(trimmed)) ?? bundleByLoose.get(loose(norm(trimmed)));
+    if (t) return { bundle_id: t, method: 'bundle name (extra words dropped)' };
+  }
+  // Store slugs, with and without a leading article: "The Mummy 3-Movie Set" -> mummy-3-movie-set
+  const s = slugify(trimmed);
+  const bySlug = bundleBySlug.get(s) ?? bundleBySlug.get(s.replace(/^(the|a|an)-/, ''));
+  return bySlug ? { bundle_id: bySlug, method: 'bundle slug' } : null;
 }
 
 // ---- Collect this year's posts ----

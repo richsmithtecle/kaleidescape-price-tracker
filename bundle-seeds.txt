@@ -1,0 +1,18 @@
+# Store slugs of sets that Kaleidescape leaves off its Content Sets page.
+# The collector checks each one through its own page (movie-store/set/<slug>) until the set
+# shows up in the database; after that it keeps checking it automatically.
+# Found with `node src/find-sets.ts` from ironcross's forum posts (2026-11-27).
+dont_breathe_2_movie_set        # Don't Breathe 2-Movie Set
+ghostbusters_5_movie_set        # Ghostbusters 5-Movie Set
+quarantine_2_movie_set          # Quarantine 2-Movie Set
+the_craft_2_movie_set           # The Craft 2-Movie Set
+the_raid_2_movie_set            # The Raid 2-Movie Set
+beetlejuice_2_movie_set         # Beetlejuice 2-Movie Set
+smile_2_movie_set               # Smile 2-Movie Set
+kung_fu_panda_4_movie_set       # Kung Fu Panda 4-Movie Set
+the_lion_king_2_movie_set       # The Lion King 2-Movie Set
+blair_withci_2_movie_set        # Blair Witch 2-Movie Set (the store's own spelling)
+mummy_3_movie_set               # The Mummy 3-Movie Set
+the_purge_5_movie_set           # The Purge 5-Movie Set
+happy_death_day_2_movie_set     # Happy Death Day 2-Movie Set
+the_lion_king_3_movie_set       # The Lion King 3-Movie Set

@@ -120,6 +120,12 @@ Price changes posted by user **ironcross** in the kscapeowners.com "Movies on Sa
   its titles and its sale end date, is fetched only when the bundle is new, has just gone on sale
   or changed sale price, or hasn't been checked for 7 days. The first run fetches all ~336 pages
   (about 12 minutes); later runs usually fetch just a few.
+- Hidden sets: Kaleidescape leaves some sets off its Content Sets page (for example The Mummy
+  3-Movie Set). Each run also reads the set collections linked from the store's home page (such
+  as the current "Content Sets On Sale" row), and keeps checking any set it has seen in the last
+  60 days through the set's own page. `bundle-seeds.txt` lists sets to look for that haven't been
+  seen yet; `node src/find-sets.ts` searches the store for sets named in ironcross's posts that
+  the tracker doesn't know about, and prints slugs to add there.
 - It doesn't track "Build Your Bundle" offers (pick N titles for a special price). None were active
   when this was built; they'd come from `rest/promotion/packages`.
 
