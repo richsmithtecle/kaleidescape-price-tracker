@@ -40,7 +40,6 @@ a { color: var(--accent); }
 .top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
 .top h1 { font-size: 1.3rem; font-weight: 600; margin: 0; }
 .iconbtn { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; color: var(--text-2); text-decoration: none; }
-.iconbtn:hover { background: var(--hover); }
 .iconbtn svg { width: 22px; height: 22px; }
 .back { display: inline-flex; align-items: center; min-height: 44px; font-size: 1rem; text-decoration: none; }
 .back svg { width: 22px; height: 22px; margin-left: -6px; }
@@ -50,22 +49,20 @@ a { color: var(--accent); }
 /* Day bar: same size as prices (17pt), white on black in both light and dark mode */
 .day { font-size: 1rem; font-weight: 600; color: #ffffff; background: #000000; margin: 20px 0 0; padding: 8px 12px; border-radius: 8px; }
 .new-low { font-weight: 600; letter-spacing: .02em; }
-.sec { font-size: .882rem; font-weight: 600; margin: 14px 0 2px; display: flex; gap: 6px; align-items: center; }
+.sec { font-size: 1rem; font-weight: 700; margin: 16px 0 2px; display: flex; gap: 6px; align-items: baseline; }
 .sec .n { color: var(--muted); font-weight: 400; }
 .sec svg { width: 18px; height: 18px; }
-.row { display: grid; grid-template-columns: minmax(0,1fr) 44px; align-items: center; border-bottom: .5px solid var(--border); padding: 7px 0; }
-.row.noact { grid-template-columns: minmax(0,1fr); }
-.l1, .l2 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.l2 { font-size: .882rem; margin-top: 2px; }
-.l1 .name { color: var(--text); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.l1 a.name:hover { color: var(--accent); }
-.l1 .name svg { width: 13px; height: 13px; color: var(--muted); margin-left: 3px; vertical-align: -1px; }
+/* List row: title + details on the left; price + change on the right (one tap target for history) */
+.row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; column-gap: 12px; border-bottom: .5px solid var(--border); }
+.left { min-width: 0; padding: 7px 0; }
+.left .name { display: block; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { font-size: .882rem; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pricecol { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 52px; min-width: 76px;
+  padding: 4px 8px; margin-right: -8px; border-radius: 10px; color: var(--text); text-decoration: none; }
+.pricecol .chg { font-size: .882rem; margin-top: 2px; }
 .price { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.meta { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chg { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hist { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; color: var(--text-2); margin-left: auto; }
-.hist:hover { background: var(--hover); color: var(--accent); }
-.hist svg { width: 22px; height: 22px; }
+.l2 { font-size: .882rem; margin-top: 2px; }
 .more { display: flex; align-items: center; min-height: 44px; text-decoration: none; }
 details > summary { list-style: none; cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; font-size: 1rem; }
 details > summary::-webkit-details-marker { display: none; }
@@ -97,7 +94,6 @@ h2 { font-size: 1rem; font-weight: 600; margin: 18px 0 8px; }
 .crow { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: .5px solid var(--border); padding: 6px 0; }
 .crow .l2 { justify-content: flex-start; flex-wrap: wrap; color: var(--muted); gap: 0; }
 .src { color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; padding: 6px 8px; margin: -6px 0 -6px -2px; border-radius: 8px; }
-.src:hover { background: var(--hover); }
 .src svg { width: 13px; height: 13px; }
 .note { color: var(--muted); font-size: .882rem; margin: 14px 0 0; }
 
@@ -105,3 +101,15 @@ h2 { font-size: 1rem; font-weight: 600; margin: 18px 0 8px; }
 .search { display: flex; gap: 8px; margin: 4px 0 8px; }
 .search input { flex: 1; font: inherit; font-size: 1rem; min-height: 44px; padding: 0 12px; border-radius: 10px; border: .5px solid var(--border-strong); background: var(--bg); color: var(--text); }
 .empty { color: var(--muted); padding: 24px 0; }
+
+/* Hover highlights only on devices with a real mouse or trackpad. On iPhone, iOS keeps
+   ":hover" stuck on the last thing tapped, which left a title blue after going back. */
+@media (hover: hover) and (pointer: fine) {
+  .iconbtn:hover { background: var(--hover); }
+  .left a.name:hover { color: var(--accent); }
+  a.pricecol:hover { background: var(--hover); }
+  .src:hover { background: var(--hover); }
+}
+/* Brief feedback while a finger is on a row's link or button. */
+.left a.name:active { color: var(--accent); }
+a.pricecol:active, .iconbtn:active, .src:active { background: var(--hover); }

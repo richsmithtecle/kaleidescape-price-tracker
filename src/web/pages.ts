@@ -28,10 +28,16 @@ const icon = (n: string) => `<svg aria-hidden="true"><use href="#i-${n}"/></svg>
 const shell = (title: string, body: string) => pageShell(title, SPRITE + body);
 
 const storeLink = (item: Item | null, name: string) => item
-  ? `<a class="name" href="${STORE}${esc(item.storePath)}" target="_blank" rel="noopener">${esc(name)}${icon('ext')}</a>`
+  ? `<a class="name" href="${STORE}${esc(item.storePath)}" target="_blank" rel="noopener">${esc(name)}</a>`
   : `<span class="name">${esc(name)}</span>`;
-const histButton = (item: Item | null, name: string) => item
-  ? `<a class="hist" href="${historyPath(item)}" aria-label="Price history for ${esc(name)}">${icon('chart')}</a>` : '';
+/** One list row: title (opens the store) and details on the left; price and change on the right,
+ *  which together open the price history. Used by the feed, day pages and search. */
+function listRow(item: Item | null, name: string, meta: string, price: number | null, chg: string): string {
+  const right = `<span class="price">${money(price)}</span>${chg}`;
+  return `<div class="row"><div class="left">${storeLink(item, name)}<div class="meta">${meta}</div></div>${item
+    ? `<a class="pricecol" href="${historyPath(item)}" aria-label="Price history for ${esc(name)}, ${money(price)}">${right}</a>`
+    : `<span class="pricecol">${right}</span>`}</div>`;
+}
 
 function changeText(c: Change): string {
   if (c.dir === 'added' || c.old === null) return `<span class="chg new">New</span>`;
@@ -53,9 +59,7 @@ function feedRow(c: Change): string {
   }
   if (c.kind === 'bundle') { if (item?.numItems) meta.push(`${item.numItems} titles`); }
   else if (c.formatLabel) meta.push(esc(c.formatLabel));
-  return `<div class="row${item ? '' : ' noact'}"><div style="min-width:0">
-  <div class="l1">${storeLink(item, c.name)}<span class="price">${money(c.price)}</span></div>
-  <div class="l2"><span class="meta">${meta.join(' · ')}</span>${changeText(c)}</div></div>${histButton(item, c.name)}</div>`;
+  return listRow(item, c.name, meta.join(' · '), c.price, changeText(c));
 }
 
 const SECTIONS: { dir: Dir; kind: Kind; title: string; icon: string; cls: string }[] = [
@@ -94,7 +98,7 @@ function daySections(day: string, all: boolean): string {
     const rows = list.filter((c) => c.dir === s.dir && c.kind === s.kind)
       .sort((a, b) => sortKey(a.name).localeCompare(sortKey(b.name), 'en', { sensitivity: 'base', numeric: true }));
     if (!rows.length) return;
-    h += `<div class="sec" id="s${i}"><span class="${s.cls}">${icon(s.icon)}</span>${s.title} <span class="n">${rows.length}</span></div>`;
+    h += `<div class="sec" id="s${i}">${s.title} <span class="n">${rows.length}</span></div>`;
     h += (all ? rows : rows.slice(0, SHOW_FIRST)).map(feedRow).join('');
     if (!all && rows.length > SHOW_FIRST) h += `<a class="more" href="${links.day(day)}#s${i}">Show ${rows.length - SHOW_FIRST} more</a>`;
   });
@@ -246,7 +250,7 @@ const fold = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').
 
 export function searchPage(q: string): string {
   const query = q.trim();
-  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price Tracker home">${icon('chart')}</a>`);
+  let h = searchHeader();
   h += `<form class="search" action="${links.search()}" method="get" role="search">
     <input type="search" name="q" value="${esc(query)}" placeholder="Wonka, Harry Potter 8-Movie Set" autofocus autocomplete="off" aria-label="Search titles and bundles"></form>`;
   if (query.length >= 2) {
@@ -259,17 +263,20 @@ export function searchPage(q: string): string {
       if (item.onSale && item.saleEnd) meta.push(`<span class="ends">Ends ${esc(monthDay(item.saleEnd))}</span>`);
       const chg = item.onSale && item.regular && item.price !== null && item.regular > item.price
         ? `<span class="chg down">↓ ${money(item.regular - item.price)}</span>` : '';
-      h += `<div class="row"><div style="min-width:0"><div class="l1">${storeLink(item, item.name)}<span class="price">${money(item.price)}</span></div>
-        <div class="l2"><span class="meta">${meta.join(' · ')}</span>${chg}</div></div>${histButton(item, item.name)}</div>`;
+      h += listRow(item, item.name, meta.join(' · '), item.price, chg);
     }
     if (hits.length > 60) h += `<p class="note">Showing 60 of ${hits.length}. Add more words to narrow it down.</p>`;
   }
   return shell('Search', h);
 }
 
+/** Search page top: a back link like the other pages, then the title. */
+const searchHeader = () =>
+  `<a class="back" href="${links.home()}">${icon('back')}Price Tracker</a><div class="top"><h1>Search</h1></div>`;
+
 /** Static-site search: the same page, filled in the browser from search-index.json by search.js. */
 export function staticSearchPage(): string {
-  let h = header('Search', `<a class="iconbtn" href="${links.home()}" aria-label="Price Tracker home">${icon('chart')}</a>`);
+  let h = searchHeader();
   h += `<form class="search" role="search" onsubmit="return false">
     <input type="search" id="q" placeholder="Wonka, Harry Potter 8-Movie Set" autofocus autocomplete="off" aria-label="Search titles and bundles"></form>
     <div id="results"></div>

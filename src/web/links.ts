@@ -5,6 +5,9 @@
 
 let base = '';
 let isStatic = false;
+// Changes on every server start or site build, so browsers (and iPhone home-screen apps)
+// fetch updated styles and scripts instead of using a cached copy.
+const version = Date.now().toString(36);
 
 export function configureLinks(opts: { base?: string; static?: boolean }) {
   base = (opts.base ?? '').replace(/\/+$/, '');
@@ -20,7 +23,7 @@ export const links = {
   title: (editionId: string) => dir(`/title/${encodeURIComponent(editionId)}`),
   bundle: (bundleId: string | number) => dir(`/bundle/${encodeURIComponent(String(bundleId))}`),
   search: () => dir('/search'),
-  asset: (name: string) => `${base}/static/${name}`,
+  asset: (name: string) => `${base}/static/${name}${name.endsWith('.json') ? '' : `?v=${version}`}`,
   isStatic: () => isStatic,
   base: () => base,
 };

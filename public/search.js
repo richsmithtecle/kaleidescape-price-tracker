@@ -7,8 +7,6 @@
   const fold = (s) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const money = (c) => (c == null ? '—' : '$' + (c / 100).toFixed(2));
-  const ext = '<svg aria-hidden="true"><use href="#i-ext"/></svg>';
-  const chart = '<svg aria-hidden="true"><use href="#i-chart"/></svg>';
   let index = null, folded = null;
 
   function render() {
@@ -27,8 +25,8 @@
       const m = [esc(meta)];
       if (ends) m.push(`<span class="ends">Ends ${esc(ends)}</span>`);
       const chg = regular && price != null && regular > price ? `<span class="chg down">↓ ${money(regular - price)}</span>` : '';
-      return `<div class="row"><div style="min-width:0"><div class="l1"><a class="name" href="${window.STORE}${esc(store)}" target="_blank" rel="noopener">${esc(name)}${ext}</a><span class="price">${money(price)}</span></div>
-        <div class="l2"><span class="meta">${m.join(' · ')}</span>${chg}</div></div><a class="hist" href="${esc(hist)}" aria-label="Price history for ${esc(name)}">${chart}</a></div>`;
+      return `<div class="row"><div class="left"><a class="name" href="${window.STORE}${esc(store)}" target="_blank" rel="noopener">${esc(name)}</a><div class="meta">${m.join(' · ')}</div></div>
+        <a class="pricecol" href="${esc(hist)}" aria-label="Price history for ${esc(name)}, ${money(price)}"><span class="price">${money(price)}</span>${chg}</a></div>`;
     }).join('') + (hits.length > 60 ? `<p class="note">Showing 60 of ${hits.length}. Add more words to narrow it down.</p>` : '');
   }
 
