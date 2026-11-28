@@ -46,6 +46,35 @@ a { color: var(--accent); }
 
 /* Feed */
 .updated { font-size: .882rem; color: var(--muted); margin: -6px 0 4px; }
+/* "Check prices now" (public/refresh.js) */
+.refresh { margin: -8px 0 4px; font-size: .882rem; }
+.refresh [hidden], .refresh[hidden] { display: none !important; }
+.refresh-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px 0 0; border: 0; background: none;
+  color: var(--accent); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.refresh-btn svg { width: 17px; height: 17px; flex: none; }
+.refresh-btn:active:not(:disabled) { opacity: .5; }
+.refresh-btn:disabled { color: var(--text-2); cursor: default; }
+.refresh.busy .refresh-btn svg { animation: refresh-spin 1s linear infinite; color: var(--accent); }
+.refresh.done .refresh-btn, .refresh.done .refresh-btn svg { color: var(--green); animation: none; }
+.refresh-label { font-variant-numeric: tabular-nums; }
+.refresh-status { color: var(--muted); margin-top: -8px; }
+.refresh-status:empty { display: none; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .refresh.busy .refresh-btn svg { animation: refresh-pulse 1.6s ease-in-out infinite; }
+  @keyframes refresh-pulse { 50% { opacity: .35; } }
+}
+.refresh-setup { margin: 8px 0 12px; padding: 12px 14px; border: .5px solid var(--border-strong); border-radius: 12px; background: var(--surface); color: var(--text-2); }
+.refresh-setup p { margin: 0 0 8px; }
+.refresh-setup ol { margin: 0 0 10px; padding-left: 1.3em; }
+.refresh-setup li { margin-bottom: 4px; }
+.refresh-key { width: 100%; min-height: 44px; padding: 0 12px; font: inherit; font-size: 1rem; color: var(--text); background: var(--bg);
+  border: .5px solid var(--border-strong); border-radius: 10px; }
+.refresh-note { margin: 6px 0 10px !important; color: var(--muted); }
+.refresh-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.refresh-actions button { min-height: 44px; padding: 0 16px; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; }
+.refresh-save { background: var(--fill); color: var(--on-fill); border: 0; }
+.refresh-cancel { background: none; color: var(--accent); border: 0; }
 /* Day bar: same size as prices (17pt), white on black in both light and dark mode */
 .day { font-size: 1rem; font-weight: 600; color: #ffffff; background: #000000; margin: 20px 0 0; padding: 8px 12px; border-radius: 8px; }
 .new-low { font-weight: 600; letter-spacing: .02em; }

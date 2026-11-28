@@ -2,6 +2,7 @@
 //
 //   node src/web/build.ts --base /kaleidescape-price-tracker --out site
 //
+// --repo owner/name (default: $GITHUB_REPOSITORY) turns on the "Check prices now" button.
 // --base is the path the site lives under (for a project site: "/<repo name>").
 // Writes: index.html, older/<day>/, day/<day>/, title/<id>/, bundle/<id>/, search/, static/, 404.html
 
@@ -14,9 +15,15 @@ import { getData } from './data.ts';
 import { feedPage, dayPage, itemPage, staticSearchPage, searchIndex, notFoundPage } from './pages.ts';
 
 const { values: args } = parseArgs({
-  options: { base: { type: 'string', default: '' }, out: { type: 'string', default: join(PROJECT_ROOT, 'site') } },
+  options: {
+    base: { type: 'string', default: '' },
+    out: { type: 'string', default: join(PROJECT_ROOT, 'site') },
+    // "owner/name" of the GitHub repository, for the "Check prices now" button. GitHub Actions sets
+    // GITHUB_REPOSITORY; without either, the button is left out.
+    repo: { type: 'string', default: process.env.GITHUB_REPOSITORY ?? '' },
+  },
 });
-configureLinks({ base: args.base, static: true });
+configureLinks({ base: args.base, static: true, repo: args.repo });
 const OUT = args.out!;
 const started = Date.now();
 
@@ -55,6 +62,7 @@ const assets: [string, string][] = [
   [join(PROJECT_ROOT, 'public', 'app.css'), 'app.css'],
   [join(PROJECT_ROOT, 'public', 'chart-page.js'), 'chart-page.js'],
   [join(PROJECT_ROOT, 'public', 'search.js'), 'search.js'],
+  [join(PROJECT_ROOT, 'public', 'refresh.js'), 'refresh.js'],
   [join(PROJECT_ROOT, 'node_modules', 'chart.js', 'dist', 'chart.umd.js'), 'chart.umd.js'],
 ];
 mkdirSync(join(OUT, 'static'), { recursive: true });

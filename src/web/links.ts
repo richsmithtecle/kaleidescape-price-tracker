@@ -5,13 +5,15 @@
 
 let base = '';
 let isStatic = false;
+let repo = '';
 // Changes on every server start or site build, so browsers (and iPhone home-screen apps)
 // fetch updated styles and scripts instead of using a cached copy.
 const version = Date.now().toString(36);
 
-export function configureLinks(opts: { base?: string; static?: boolean }) {
+export function configureLinks(opts: { base?: string; static?: boolean; repo?: string }) {
   base = (opts.base ?? '').replace(/\/+$/, '');
   isStatic = !!opts.static;
+  repo = /^[\w.-]+\/[\w.-]+$/.test(opts.repo ?? '') ? opts.repo! : '';
 }
 
 const dir = (p: string) => `${base}${p}${isStatic ? '/' : ''}`;
@@ -26,4 +28,6 @@ export const links = {
   asset: (name: string) => `${base}/static/${name}${name.endsWith('.json') ? '' : `?v=${version}`}`,
   isStatic: () => isStatic,
   base: () => base,
+  /** GitHub "owner/name" the static site was built from, or '' (local server). */
+  repo: () => repo,
 };

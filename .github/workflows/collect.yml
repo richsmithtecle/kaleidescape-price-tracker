@@ -10,9 +10,10 @@ name: Collect prices and publish
 on:
   schedule:
     # GitHub schedules use UTC, so these are an hour later during daylight saving time.
-    # Scheduled runs can start late (or rarely be skipped) when GitHub is busy.
-    - cron: '0 12 * * *'    # 7:00 AM Eastern Standard Time (8:00 AM during daylight time)
-    - cron: '0 18 * * *'    # 1:00 PM Eastern Standard Time (2:00 PM during daylight time)
+    # Scheduled runs can start late (or be skipped) when GitHub is busy, which is worst at the
+    # top of the hour, so these run at 17 minutes past.
+    - cron: '17 12 * * *'   # 7:17 AM Eastern Standard Time (8:17 AM during daylight time)
+    - cron: '17 18 * * *'   # 1:17 PM Eastern Standard Time (2:17 PM during daylight time)
   workflow_dispatch:
     inputs:
       skip_collect:

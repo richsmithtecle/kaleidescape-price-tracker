@@ -40,15 +40,22 @@ npm run web:phone    # also prints an address to open on your iPhone (same Wi-Fi
 - Code: `src/web/` (server, data, pages) and `public/` (styles and chart script).
 
 ## Running on GitHub
-The workflow in `.github/workflows/collect.yml` runs the collector at 7:00 AM and 1:00 PM Eastern
-(8:00 AM and 2:00 PM during daylight saving time, because GitHub schedules use UTC) and publishes
+The workflow in `.github/workflows/collect.yml` runs the collector at 7:17 AM and 1:17 PM Eastern
+(8:17 AM and 2:17 PM during daylight saving time, because GitHub schedules use UTC) and publishes
 the web app to GitHub Pages, so no computer needs to stay on. GitHub can start scheduled runs
-up to about an hour late when it's busy.
+late, sometimes by hours, when it's busy. That's worst at the top of the hour, hence :17.
 - The database is stored in the repository's `data` release as `tracker.db.gz`, not in git.
   Each run downloads it, collects, uploads it again, rebuilds the site and deploys it.
 - To build the static site locally: `node src/web/build.ts --base /<repo-name> --out site`.
-- To run it now: Actions → "Collect prices and publish" → Run workflow. Tick "Only rebuild"
-  to publish the site without collecting.
+- To run it now: tap **Check prices now** under the "Updated" time on the site, or use Actions →
+  "Collect prices and publish" → Run workflow. Tick "Only rebuild" to publish the site without
+  collecting.
+- **Check prices now** (`public/refresh.js`) starts the workflow through the GitHub API, shows its
+  progress, and reloads the page when the new site is published. The first time on each device it
+  asks for a GitHub key: a fine-grained token for this repository only, with Actions: Read and
+  write. It's kept in that browser's storage and can only run and cancel workflows. Anyone visiting
+  can see that a check is running, but can't start one. The button only appears on the GitHub
+  Pages build (`build.ts` reads the repository from `GITHUB_REPOSITORY` or `--repo`).
 - If a collection fails, the run is marked failed (GitHub emails you), but anything collected is
   still saved and published.
 - To use the latest data on your Mac, download `tracker.db.gz` from the `data` release, unzip it

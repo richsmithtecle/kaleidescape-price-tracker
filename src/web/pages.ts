@@ -20,6 +20,7 @@ const ICONS: Record<string, string> = {
   tv: '<path d="M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M16 3l-4 4l-4 -4"/>',
   stack: '<path d="M12 4l-8 4l8 4l8 -4z"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  refresh: '<path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>',
 };
 // Defined once per page; each use is a short <use> reference, which keeps long lists small.
 const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${Object.entries(ICONS)
@@ -115,11 +116,34 @@ export function dayPage(day: string): string | null {
   return shell(dayHeading(day), h);
 }
 
+/** "Check prices now": starts the GitHub workflow and shows its progress (public/refresh.js).
+ *  Only on the GitHub Pages site; hidden until the script runs. */
+function refreshControl(): string {
+  if (!links.repo()) return '';
+  return `<div class="refresh" id="refresh" data-repo="${esc(links.repo())}" data-workflow="collect.yml" hidden>
+<button type="button" class="refresh-btn">${icon('refresh')}<span class="refresh-label">Check prices now</span></button>
+<div class="refresh-status" role="status" aria-live="polite"></div>
+<form class="refresh-setup" hidden>
+<p>To start a check from this device, it needs a GitHub key that's allowed to run the price check. You only do this once per device.</p>
+<ol>
+<li><a class="refresh-keylink" target="_blank" rel="noopener">Create a key on GitHub</a>.</li>
+<li>Under <b>Repository access</b>, choose <b>Only select repositories</b> and pick <b>${esc(links.repo().split('/')[1])}</b>. Actions: Read and write is already filled in.</li>
+<li>Tap <b>Generate token</b>, copy it, and paste it here.</li>
+</ol>
+<input type="password" class="refresh-key" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="GitHub key">
+<p class="refresh-note">Saved only in this browser. It can run and cancel price checks, and nothing else.</p>
+<div class="refresh-actions"><button type="submit" class="refresh-save">Save and check now</button><button type="button" class="refresh-cancel">Cancel</button></div>
+</form>
+<script src="${links.asset('refresh.js')}" defer></script>
+</div>`;
+}
+
 export function feedPage(before?: string): string {
   const d = getData();
   const days = d.days.filter((x) => !before || x < before).slice(0, DAYS_PER_PAGE);
   let h = header(SITE_TITLE);
   if (d.lastUpdated) h += `<p class="updated">Updated ${esc(updatedAt(d.lastUpdated))}</p>`;
+  h += refreshControl();
   if (!days.length) h += `<p class="empty">No price changes yet. Run <code>npm run collect</code> to start recording.</p>`;
   for (const day of days) h += `<div class="day">${dayTitle(day)}</div>${daySections(day, false)}`;
   const older = d.days.find((x) => x < (days[days.length - 1] ?? ''));
